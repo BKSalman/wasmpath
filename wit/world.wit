@@ -1,0 +1,28 @@
+package component:wasmpath@0.1.0;
+
+world main {
+    import wasi:logging/logging;
+
+    record position {
+        row: u32,
+        column: u32,
+    }
+
+    resource state {
+        log-state: func();
+        /// columns and rows start from 0
+        move-up: func();
+        /// columns and rows start from 0
+        move-down: func();
+        /// columns and rows start from 0
+        move-left: func();
+        /// columns and rows start from 0
+        move-right: func();
+        /// get target position in the grid
+        target-position: func() -> position;
+        /// get player position in the grid
+        player-position: func() -> position;
+    }
+
+    export step: func(state: borrow<state>);
+}
