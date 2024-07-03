@@ -22,7 +22,10 @@ world main {
         target-position: func() -> position;
         /// get player position in the grid
         player-position: func() -> position;
+        /// get adjacent cells (left, right, up, and left) of provided cell position
+        adjacent: func(cell: position) -> list<position>;
     }
 
+    export initialize: func(state: borrow<state>);
     export step: func(state: borrow<state>);
 }

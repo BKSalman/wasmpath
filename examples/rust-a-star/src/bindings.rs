@@ -218,6 +218,54 @@ impl State {
         }
     }
 }
+impl State {
+    #[allow(unused_unsafe, clippy::all)]
+    /// get adjacent cells (left, right, up, and left) of provided cell position
+    pub fn adjacent(&self, cell: Position) -> _rt::Vec<Position> {
+        unsafe {
+            #[repr(align(4))]
+            struct RetArea([::core::mem::MaybeUninit<u8>; 8]);
+            let mut ret_area = RetArea([::core::mem::MaybeUninit::uninit(); 8]);
+            let Position {
+                row: row0,
+                column: column0,
+            } = cell;
+            let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
+            #[cfg(target_arch = "wasm32")]
+            #[link(wasm_import_module = "$root")]
+            extern "C" {
+                #[link_name = "[method]state.adjacent"]
+                fn wit_import(_: i32, _: i32, _: i32, _: *mut u8);
+            }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            fn wit_import(_: i32, _: i32, _: i32, _: *mut u8) {
+                unreachable!()
+            }
+            wit_import(
+                (self).handle() as i32,
+                _rt::as_i32(row0),
+                _rt::as_i32(column0),
+                ptr1,
+            );
+            let l2 = *ptr1.add(0).cast::<*mut u8>();
+            let l3 = *ptr1.add(4).cast::<usize>();
+            let len4 = l3;
+            _rt::Vec::from_raw_parts(l2.cast(), len4, len4)
+        }
+    }
+}
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn _export_initialize_cabi<T: Guest>(arg0: i32) {
+    #[cfg(target_arch = "wasm32")]
+    _rt::run_ctors_once();
+    let handle0;
+    T::initialize({
+        handle0 = State::from_handle(arg0 as u32);
+        &handle0
+    });
+}
 #[doc(hidden)]
 #[allow(non_snake_case)]
 pub unsafe fn _export_step_cabi<T: Guest>(arg0: i32) {
@@ -230,6 +278,7 @@ pub unsafe fn _export_step_cabi<T: Guest>(arg0: i32) {
     });
 }
 pub trait Guest {
+    fn initialize(state: &State);
     fn step(state: &State);
 }
 #[doc(hidden)]
@@ -237,6 +286,10 @@ pub trait Guest {
 macro_rules! __export_world_main_cabi{
   ($ty:ident with_types_in $($path_to_types:tt)*) => (const _: () = {
 
+    #[export_name = "initialize"]
+    unsafe extern "C" fn export_initialize(arg0: i32,) {
+      $($path_to_types)*::_export_initialize_cabi::<$ty>(arg0)
+    }
     #[export_name = "step"]
     unsafe extern "C" fn export_step(arg0: i32,) {
       $($path_to_types)*::_export_step_cabi::<$ty>(arg0)
@@ -444,11 +497,83 @@ mod _rt {
             }
         }
     }
+    pub use alloc_crate::vec::Vec;
+
+    pub fn as_i32<T: AsI32>(t: T) -> i32 {
+        t.as_i32()
+    }
+
+    pub trait AsI32 {
+        fn as_i32(self) -> i32;
+    }
+
+    impl<'a, T: Copy + AsI32> AsI32 for &'a T {
+        fn as_i32(self) -> i32 {
+            (*self).as_i32()
+        }
+    }
+
+    impl AsI32 for i32 {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
+
+    impl AsI32 for u32 {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
+
+    impl AsI32 for i16 {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
+
+    impl AsI32 for u16 {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
+
+    impl AsI32 for i8 {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
+
+    impl AsI32 for u8 {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
+
+    impl AsI32 for char {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
+
+    impl AsI32 for usize {
+        #[inline]
+        fn as_i32(self) -> i32 {
+            self as i32
+        }
+    }
 
     #[cfg(target_arch = "wasm32")]
     pub fn run_ctors_once() {
         wit_bindgen_rt::run_ctors_once();
     }
+    extern crate alloc as alloc_crate;
 }
 
 /// Generates `#[no_mangle]` functions to export the specified type as the
@@ -482,9 +607,9 @@ pub(crate) use __export_main_impl as export;
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:wit-bindgen:0.25.0:main:encoded world"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 573] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xc2\x03\x01A\x02\x01\
-A\x11\x01B\x04\x01m\x06\x05trace\x05debug\x04info\x04warn\x05error\x08critical\x04\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 635] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x80\x04\x01A\x02\x01\
+A\x15\x01B\x04\x01m\x06\x05trace\x05debug\x04info\x04warn\x05error\x08critical\x04\
 \0\x05level\x03\0\0\x01@\x03\x05level\x01\x07contexts\x07messages\x01\0\x04\0\x03\
 log\x01\x02\x03\x01\x14wasi:logging/logging\x05\0\x01r\x02\x03rowy\x06columny\x03\
 \0\x08position\x03\0\x01\x03\0\x05state\x03\x01\x01h\x03\x01@\x01\x04self\x04\x01\
@@ -492,9 +617,11 @@ log\x01\x02\x03\x01\x14wasi:logging/logging\x05\0\x01r\x02\x03rowy\x06columny\x0
 \x03\0\x17[method]state.move-down\x01\x05\x03\0\x17[method]state.move-left\x01\x05\
 \x03\0\x18[method]state.move-right\x01\x05\x01@\x01\x04self\x04\0\x02\x03\0\x1d[\
 method]state.target-position\x01\x06\x03\0\x1d[method]state.player-position\x01\x06\
-\x01@\x01\x05state\x04\x01\0\x04\0\x04step\x01\x07\x04\x01\x1dcomponent:wasmpath\
-/main@0.1.0\x04\0\x0b\x0a\x01\0\x04main\x03\0\0\0G\x09producers\x01\x0cprocessed\
--by\x02\x0dwit-component\x070.208.1\x10wit-bindgen-rust\x060.25.0";
+\x01p\x02\x01@\x02\x04self\x04\x04cell\x02\0\x07\x03\0\x16[method]state.adjacent\
+\x01\x08\x01@\x01\x05state\x04\x01\0\x04\0\x0ainitialize\x01\x09\x04\0\x04step\x01\
+\x09\x04\x01\x1dcomponent:wasmpath/main@0.1.0\x04\0\x0b\x0a\x01\0\x04main\x03\0\0\
+\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.208.1\x10wit-bind\
+gen-rust\x060.25.0";
 
 #[inline(never)]
 #[doc(hidden)]

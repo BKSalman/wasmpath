@@ -1302,7 +1302,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust"
+name = "rust-a-star"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen",
+ "wit-bindgen-rt",
+]
+
+[[package]]
+name = "rust-basic"
 version = "0.1.0"
 dependencies = [
  "wit-bindgen",

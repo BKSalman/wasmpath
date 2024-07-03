@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut playground = Playground::new(wasi_ctx);
 
-    let grid = playground.slab.insert(Grid::new(5, 5));
+    let grid = playground.slab.insert(Grid::new(20, 20));
 
     let mut store = Store::new(&engine, playground);
     let component = Component::from_file(&engine, wasm_file.clone())?;
@@ -41,6 +41,10 @@ async fn main() -> anyhow::Result<()> {
     let (component, _) = Main::instantiate_async(&mut store, &component, &linker).await?;
 
     let mut timer = timer::Timer::new(Duration::from_secs(1));
+
+    component
+        .call_initialize(&mut store, Resource::new_borrow(grid as u32))
+        .await?;
 
     loop {
         let reached = store.data().slab.get(grid).is_some_and(|g| g.has_reached());

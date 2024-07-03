@@ -46,7 +46,6 @@ impl Grid {
     pub fn new(rows: u32, columns: u32) -> Self {
         let player_pos = generate_random_position(rows, columns);
         let displacement = calculate_displacement((rows / 2).max(columns / 2) as f64);
-        println!("displacement: {displacement:?}");
         let target_pos = apply_displacement(&player_pos, displacement, rows, columns);
 
         Self {
@@ -95,6 +94,27 @@ impl Grid {
 
     pub fn target_pos(&self) -> Position {
         self.target
+    }
+
+    pub fn adjacent(&self, cell: &Position) -> Vec<Position> {
+        let mut adjacent = vec![];
+
+        for r in 0..self.rows {
+            for c in 0..self.columns {
+                if c as u32 == cell.column - 1
+                    || c as u32 == cell.column + 1
+                    || r as u32 == cell.row - 1
+                    || r as u32 == cell.row + 1
+                {
+                    adjacent.push(Position {
+                        row: r as u32,
+                        column: c as u32,
+                    });
+                }
+            }
+        }
+
+        adjacent
     }
 
     /// NOTE: columns and rows start from 0

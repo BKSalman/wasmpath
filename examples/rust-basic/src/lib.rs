@@ -17,6 +17,7 @@ fn get_went_up() -> bool {
 struct Component;
 
 impl Guest for Component {
+    fn initialize(_state: &State) {}
     fn step(state: &State) {
         if !get_went_up() {
             state.move_up();

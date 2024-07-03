@@ -66,6 +66,15 @@ impl HostState for Playground {
         grid.player_pos()
     }
 
+    async fn adjacent(
+        &mut self,
+        self_: wasmtime::component::Resource<State>,
+        cell: Position,
+    ) -> Vec<Position> {
+        let grid = self.slab.get_mut(self_.rep() as usize).unwrap();
+        grid.adjacent(&cell)
+    }
+
     fn drop(&mut self, _rep: wasmtime::component::Resource<State>) -> wasmtime::Result<()> {
         Ok(())
     }
