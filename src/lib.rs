@@ -3,6 +3,8 @@ use wasmtime::component::*;
 use wasmtime_wasi::{ResourceTable, WasiCtx, WasiView};
 
 pub mod grid;
+#[cfg(test)]
+mod tests;
 pub mod timer;
 
 bindgen!({

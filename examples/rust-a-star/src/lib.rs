@@ -1,35 +1,37 @@
+use std::sync::{OnceLock, RwLock};
+
+use wasi::logging::logging::{self, Level};
+
 wit_bindgen::generate!({
     path: "wit",
     additional_derives: [PartialEq, Eq],
 });
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct Cell {
-    total_cost: u32, // f
+    cost_from_starting_point: u32, // g
+    total_cost: u32,               // f
     position: Position,
 }
 
-static mut OPEN_LIST: Vec<Cell> = vec![];
 static mut STARTING_POS: Position = Position { row: 0, column: 0 };
-static mut CLOSED_LIST: Vec<Cell> = vec![];
 
-fn push_open_list(item: Cell) {
-    unsafe {
-        OPEN_LIST.push(item);
-    }
+fn open_list() -> &'static RwLock<Vec<Cell>> {
+    static OPEN_LIST: OnceLock<RwLock<Vec<Cell>>> = OnceLock::new();
+    OPEN_LIST.get_or_init(|| RwLock::new(vec![]))
 }
 
-fn push_closed_list(item: Cell) {
-    unsafe {
-        OPEN_LIST.push(item);
-    }
+fn closed_list() -> &'static RwLock<Vec<Cell>> {
+    static CLOSED_LIST: OnceLock<RwLock<Vec<Cell>>> = OnceLock::new();
+    CLOSED_LIST.get_or_init(|| RwLock::new(vec![]))
 }
 
 struct Component;
 
 impl Guest for Component {
     fn initialize(state: &State) {
-        push_open_list(Cell {
+        open_list().write().unwrap().push(Cell {
+            cost_from_starting_point: 0,
             total_cost: 0,
             position: state.player_position(),
         });
@@ -39,34 +41,84 @@ impl Guest for Component {
     }
 
     fn step(state: &State) {
-        let min = unsafe { OPEN_LIST.iter().min_by_key(|c| c.total_cost) };
+        loop {
+            let open_list_lock = open_list().read().unwrap();
+            let min = open_list_lock.iter().copied().min_by_key(|c| c.total_cost);
+            drop(open_list_lock);
 
-        if let Some(current) = min {
-            unsafe { OPEN_LIST.retain(|c| c.position != current.position) };
+            if let Some(current) = min {
+                open_list()
+                    .write()
+                    .unwrap()
+                    .retain(|c| c.position != current.position);
 
-            for cell in state.adjacent(current.position) {
-                if cell == state.target_position() {
+                for cell in state.adjacent(current.position) {
+                    if cell == state.target_position() {
+                        open_list().write().unwrap().push(Cell {
+                            cost_from_starting_point: 0,
+                            total_cost: 0,
+                            position: cell,
+                        });
+                        break;
+                    }
+
+                    if open_list()
+                        .read()
+                        .unwrap()
+                        .iter()
+                        .any(|c| c.position == cell)
+                        || closed_list()
+                            .read()
+                            .unwrap()
+                            .iter()
+                            .any(|c| c.position == cell)
+                    {
+                        continue;
+                    }
+
+                    // compute g (cost to reach `cell` from the starting point) for `cell`
+                    let g = current.cost_from_starting_point + 1;
+                    // compute h (distance from `cell` to target) for `cell`
+                    let target_pos = state.target_position();
+                    let h =
+                        target_pos.row.abs_diff(cell.row) + target_pos.column.abs_diff(cell.column);
+                    // compute f (g + h) for `cell`
+                    let f = g + h;
+
+                    let new_cell = Cell {
+                        cost_from_starting_point: g,
+                        total_cost: f,
+                        position: cell,
+                    };
+
+                    open_list().write().unwrap().push(new_cell);
+                }
+
+                if current.position.row < state.player_position().row
+                    && current.position.column == state.player_position().column
+                {
+                    state.move_up();
+                    break;
+                } else if current.position.row > state.player_position().row
+                    && current.position.column == state.player_position().column
+                {
+                    state.move_down();
+                    break;
+                } else if current.position.column < state.player_position().column
+                    && current.position.row == state.player_position().row
+                {
+                    state.move_left();
+                    break;
+                } else if current.position.column > state.player_position().column
+                    && current.position.row == state.player_position().row
+                {
+                    state.move_right();
                     break;
                 }
-
-                // TODO: compute g (cost to reach `cell` from the starting point) for `cell`
-                // TODO: compute h (distance from `cell` to target) for `cell`
-                // TODO: compute f (g + h) for `cell`
-
-                if unsafe {
-                    OPEN_LIST.iter().any(|c| c.position == cell)
-                        || CLOSED_LIST.iter().any(|c| c.position == cell)
-                } {
-                    continue;
-                }
-
-                push_open_list(Cell {
-                    total_cost: todo!(),
-                    position: cell,
-                });
+                closed_list().write().unwrap().push(current);
+            } else {
+                break;
             }
-
-            push_closed_list(*current);
         }
     }
 }

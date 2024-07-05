@@ -10,6 +10,7 @@ pub struct Grid {
     columns: usize,
     player: Position,
     target: Position,
+    history: Vec<Position>,
 }
 
 fn generate_random_position(rows: u32, columns: u32) -> Position {
@@ -53,6 +54,7 @@ impl Grid {
             columns: columns as usize,
             player: player_pos,
             target: target_pos,
+            history: vec![player_pos],
         }
     }
 
@@ -61,6 +63,7 @@ impl Grid {
             return;
         }
 
+        self.history.push(self.player);
         self.player.row -= 1;
     }
 
@@ -69,6 +72,7 @@ impl Grid {
             return;
         }
 
+        self.history.push(self.player);
         self.player.row += 1;
     }
 
@@ -77,6 +81,7 @@ impl Grid {
             return;
         }
 
+        self.history.push(self.player);
         self.player.column += 1;
     }
 
@@ -85,7 +90,16 @@ impl Grid {
             return;
         }
 
+        self.history.push(self.player);
         self.player.column -= 1;
+    }
+
+    pub fn history(&self) -> Vec<Position> {
+        self.history.clone()
+    }
+
+    pub fn is_in_history(&self, cell: &Position) -> bool {
+        self.history.iter().any(|h| h == cell)
     }
 
     pub fn player_pos(&self) -> Position {
@@ -99,19 +113,36 @@ impl Grid {
     pub fn adjacent(&self, cell: &Position) -> Vec<Position> {
         let mut adjacent = vec![];
 
-        for r in 0..self.rows {
-            for c in 0..self.columns {
-                if c as u32 == cell.column - 1
-                    || c as u32 == cell.column + 1
-                    || r as u32 == cell.row - 1
-                    || r as u32 == cell.row + 1
-                {
-                    adjacent.push(Position {
-                        row: r as u32,
-                        column: c as u32,
-                    });
-                }
-            }
+        // Up
+        if cell.row > 0 {
+            adjacent.push(Position {
+                row: cell.row - 1,
+                column: cell.column,
+            });
+        }
+
+        // Down
+        if cell.row < self.rows as u32 - 1 {
+            adjacent.push(Position {
+                row: cell.row + 1,
+                column: cell.column,
+            });
+        }
+
+        // Left
+        if cell.column > 0 {
+            adjacent.push(Position {
+                row: cell.row,
+                column: cell.column - 1,
+            });
+        }
+
+        // Right
+        if cell.column < self.columns as u32 - 1 {
+            adjacent.push(Position {
+                row: cell.row,
+                column: cell.column + 1,
+            });
         }
 
         adjacent

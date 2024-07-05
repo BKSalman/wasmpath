@@ -64,54 +64,61 @@ async fn main() -> anyhow::Result<()> {
                     target_pos.row as usize * grid.columns() + target_pos.column as usize;
                 if player_index == i {
                     draw_rectangle(
-                        (55. * (i % grid.columns()) as f32) + centered_width,
-                        55. * (i / grid.rows()) as f32 + centered_height,
+                        55. * (i % grid.columns()) as f32 + centered_width,
+                        55. * (i / grid.columns()) as f32 + centered_height,
                         50.,
                         50.,
                         BLUE,
                     );
-                    // draw_text(
-                    //     &i.to_string(),
-                    //     55. * (i % grid.columns()) as f32 + centered_width,
-                    //     30. + (50. * (i / grid.rows()) as f32) + centered_height,
-                    //     20.,
-                    //     BLACK,
-                    // );
                 } else if target_index == i {
                     draw_rectangle(
-                        (55. * (i % grid.columns()) as f32) + centered_width,
-                        55. * (i / grid.rows()) as f32 + centered_height,
+                        55. * (i % grid.columns()) as f32 + centered_width,
+                        55. * (i / grid.columns()) as f32 + centered_height,
                         50.,
                         50.,
                         RED,
                     );
-                    // draw_text(
-                    //     &i.to_string(),
-                    //     55. * (i % grid.columns()) as f32 + centered_width,
-                    //     30. + (50. * (i / grid.rows()) as f32) + centered_height,
-                    //     20.,
-                    //     BLACK,
-                    // );
                 } else {
-                    draw_rectangle(
-                        (55. * (i % grid.columns()) as f32) + centered_width,
-                        55. * (i / grid.rows()) as f32 + centered_height,
-                        50.,
-                        50.,
-                        LIGHTGRAY,
-                    );
-                    // draw_text(
-                    //     &i.to_string(),
-                    //     55. * (i % grid.columns()) as f32 + centered_width,
-                    //     30. + (50. * (i / grid.rows()) as f32) + centered_height,
-                    //     20.,
-                    //     BLACK,
-                    // );
+                    let column = i % grid.columns();
+                    let row = i / grid.columns();
+                    if reached {
+                        let is_in_history = grid.is_in_history(&wasmpath::Position {
+                            row: row as u32,
+                            column: column as u32,
+                        });
+
+                        if is_in_history {
+                            draw_rectangle(
+                                55. * column as f32 + centered_width,
+                                55. * row as f32 + centered_height,
+                                50.,
+                                50.,
+                                GREEN,
+                            );
+                        } else {
+                            draw_rectangle(
+                                55. * column as f32 + centered_width,
+                                55. * row as f32 + centered_height,
+                                50.,
+                                50.,
+                                LIGHTGRAY,
+                            );
+                        }
+                    } else {
+                        draw_rectangle(
+                            55. * column as f32 + centered_width,
+                            55. * row as f32 + centered_height,
+                            50.,
+                            50.,
+                            LIGHTGRAY,
+                        );
+                    }
                 }
             }
         }
 
         if !reached && timer.is_finished() {
+            println!("stepping");
             component
                 .call_step(&mut store, Resource::new_borrow(grid as u32))
                 .await?;
