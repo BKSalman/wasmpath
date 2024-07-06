@@ -14,8 +14,6 @@ struct Cell {
     position: Position,
 }
 
-static mut STARTING_POS: Position = Position { row: 0, column: 0 };
-
 fn open_list() -> &'static RwLock<Vec<Cell>> {
     static OPEN_LIST: OnceLock<RwLock<Vec<Cell>>> = OnceLock::new();
     OPEN_LIST.get_or_init(|| RwLock::new(vec![]))
@@ -35,9 +33,6 @@ impl Guest for Component {
             total_cost: 0,
             position: state.player_position(),
         });
-        unsafe {
-            STARTING_POS = state.player_position();
-        }
     }
 
     fn step(state: &State) {
