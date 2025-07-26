@@ -1,8 +1,6 @@
 package component:wasmpath@0.1.0;
 
-world main {
-    import wasi:logging/logging;
-
+interface game {
     record position {
         row: u32,
         column: u32,
@@ -10,22 +8,33 @@ world main {
 
     resource state {
         log-state: func();
-        /// columns and rows start from 0
-        move-up: func();
-        /// columns and rows start from 0
-        move-down: func();
-        /// columns and rows start from 0
-        move-left: func();
-        /// columns and rows start from 0
-        move-right: func();
         /// get target position in the grid
         target-position: func() -> position;
         /// get player position in the grid
         player-position: func() -> position;
         /// get adjacent cells (left, right, up, and left) of provided cell position
-        adjacent: func(cell: position) -> list<position>;
+        adjacent-cells: func(cell: position) -> list<position>;
+    }
+    
+}
+
+interface solution {
+    use game.{state};
+
+    enum direction {
+        up,
+        down,
+        left,
+        right,
     }
 
-    export initialize: func(state: borrow<state>);
-    export step: func(state: borrow<state>);
+    resource solver {
+        constructor(state: borrow<state>);
+        step: func(state: borrow<state>) -> option<direction>;
+    }
+}
+
+world wasm-path {
+    import game;
+    export solution;
 }

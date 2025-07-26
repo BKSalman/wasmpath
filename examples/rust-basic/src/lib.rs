@@ -1,3 +1,6 @@
+use component::wasmpath::game::State;
+use exports::component::wasmpath::solution::{Direction, Guest, GuestSolver};
+
 wit_bindgen::generate!({
     path: "wit"
 });
@@ -17,14 +20,20 @@ fn get_went_up() -> bool {
 struct Component;
 
 impl Guest for Component {
-    fn initialize(_state: &State) {}
-    fn step(state: &State) {
+    type Solver = Component;
+}
+
+impl GuestSolver for Component {
+    fn new(_state: &State) -> Self {
+        Self
+    }
+    fn step(&self, _state: &State) -> Option<Direction> {
         if !get_went_up() {
-            state.move_up();
             set_went_up(true);
+            Some(Direction::Up)
         } else {
-            state.move_left();
             set_went_up(false);
+            Some(Direction::Down)
         }
     }
 }

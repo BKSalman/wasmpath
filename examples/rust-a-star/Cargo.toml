@@ -1,21 +1,16 @@
 [package]
 name = "rust-a-star"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-wit-bindgen = "0.26.0"
-wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
+wit-bindgen = "0.43.0"
+wit-bindgen-rt = { version = "0.43.0", features = ["bitflags"] }
 
 [lib]
 crate-type = ["cdylib"]
 
-[profile.release]
-codegen-units = 1
-opt-level = "s"
-debug = false
-strip = true
-lto = true
+[package.metadata.component]
+package = "component:wasmpath"
 
-[package.metadata.component.target.dependencies]
-"wasi:logging" = { path = "./wit/deps/logging" }
+[package.metadata.component.dependencies]

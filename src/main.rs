@@ -2,8 +2,10 @@ use std::time::Duration;
 
 use anyhow::Context;
 use macroquad::prelude::*;
+use wasmpath::component::wasmpath::game::Position;
+use wasmpath::exports::component::wasmpath::solution::Direction;
 use wasmpath::timer;
-use wasmpath::{grid::Grid, Main, Playground};
+use wasmpath::{grid::Grid, Playground, WasmPath};
 use wasmtime::component::{Component, Linker, Resource};
 use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::WasiCtxBuilder;
@@ -14,15 +16,17 @@ async fn main() -> anyhow::Result<()> {
     let wasm_file = args
         .next()
         .ok_or(anyhow::anyhow!("ERROR: Path to wasm file was not provided"))?;
+
     let mut config = Config::new();
     config.wasm_component_model(true);
     config.async_support(true);
+
     let engine = Engine::new(&config)?;
 
     let mut linker = Linker::new(&engine);
     wasmtime_wasi::add_to_linker_sync(&mut linker)?;
 
-    Main::add_to_linker(&mut linker, |s: &mut Playground| s)
+    WasmPath::add_to_linker(&mut linker, |s: &mut Playground| s)
         .with_context(|| format!("Failed to link component imports"))?;
 
     let wasi_ctx = WasiCtxBuilder::new()
@@ -38,12 +42,14 @@ async fn main() -> anyhow::Result<()> {
     let mut store = Store::new(&engine, playground);
     let component = Component::from_file(&engine, wasm_file.clone())?;
 
-    let (component, _) = Main::instantiate_async(&mut store, &component, &linker).await?;
+    let (component, _) = WasmPath::instantiate_async(&mut store, &component, &linker).await?;
 
-    let mut timer = timer::Timer::new(Duration::from_secs(1));
+    let mut timer = timer::Timer::new(Duration::from_millis(500));
 
-    component
-        .call_initialize(&mut store, Resource::new_borrow(grid as u32))
+    let solver = component
+        .component_wasmpath_solution()
+        .solver()
+        .call_constructor(&mut store, Resource::new_borrow(grid as u32))
         .await?;
 
     loop {
@@ -82,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
                     let column = i % grid.columns();
                     let row = i / grid.columns();
                     if reached {
-                        let is_in_history = grid.is_in_history(&wasmpath::Position {
+                        let is_in_history = grid.is_in_history(&Position {
                             row: row as u32,
                             column: column as u32,
                         });
@@ -119,9 +125,22 @@ async fn main() -> anyhow::Result<()> {
 
         if !reached && timer.is_finished() {
             println!("stepping");
-            component
-                .call_step(&mut store, Resource::new_borrow(grid as u32))
+            let direction = component
+                .component_wasmpath_solution()
+                .solver()
+                .call_step(&mut store, solver, Resource::new_borrow(grid as u32))
                 .await?;
+
+            let grid = store.data_mut().slab.get_mut(grid).unwrap();
+            if let Some(direction) = direction {
+                match direction {
+                    Direction::Up => grid.move_up(),
+                    Direction::Down => grid.move_down(),
+                    Direction::Left => grid.move_left(),
+                    Direction::Right => grid.move_right(),
+                }
+            }
+
             timer.reset();
             timer.start();
         }

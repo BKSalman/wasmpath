@@ -1,6 +1,7 @@
-use std::sync::{OnceLock, RwLock};
+use std::cell::RefCell;
 
-use wasi::logging::logging::{self, Level};
+use component::wasmpath::game::{Position, State};
+use exports::component::wasmpath::solution::{Direction, Guest, GuestSolver};
 
 wit_bindgen::generate!({
     path: "wit",
@@ -14,42 +15,44 @@ struct Cell {
     position: Position,
 }
 
-fn open_list() -> &'static RwLock<Vec<Cell>> {
-    static OPEN_LIST: OnceLock<RwLock<Vec<Cell>>> = OnceLock::new();
-    OPEN_LIST.get_or_init(|| RwLock::new(vec![]))
+struct Solver {
+    open_list: RefCell<Vec<Cell>>,
+    closed_list: RefCell<Vec<Cell>>,
 }
 
-fn closed_list() -> &'static RwLock<Vec<Cell>> {
-    static CLOSED_LIST: OnceLock<RwLock<Vec<Cell>>> = OnceLock::new();
-    CLOSED_LIST.get_or_init(|| RwLock::new(vec![]))
+impl Guest for Solver {
+    type Solver = Solver;
 }
 
-struct Component;
-
-impl Guest for Component {
-    fn initialize(state: &State) {
-        open_list().write().unwrap().push(Cell {
-            cost_from_starting_point: 0,
-            total_cost: 0,
-            position: state.player_position(),
-        });
+impl GuestSolver for Solver {
+    fn new(state: &State) -> Self {
+        Solver {
+            open_list: RefCell::new(vec![Cell {
+                cost_from_starting_point: 0,
+                total_cost: 0,
+                position: state.player_position(),
+            }]),
+            closed_list: RefCell::new(Vec::new()),
+        }
     }
 
-    fn step(state: &State) {
+    fn step(&self, state: &State) -> Option<Direction> {
         loop {
-            let open_list_lock = open_list().read().unwrap();
-            let min = open_list_lock.iter().copied().min_by_key(|c| c.total_cost);
-            drop(open_list_lock);
+            let min = self
+                .open_list
+                .borrow()
+                .iter()
+                .copied()
+                .min_by_key(|c| c.total_cost);
 
             if let Some(current) = min {
-                open_list()
-                    .write()
-                    .unwrap()
+                self.open_list
+                    .borrow_mut()
                     .retain(|c| c.position != current.position);
 
-                for cell in state.adjacent(current.position) {
+                for cell in state.adjacent_cells(current.position) {
                     if cell == state.target_position() {
-                        open_list().write().unwrap().push(Cell {
+                        self.open_list.borrow_mut().push(Cell {
                             cost_from_starting_point: 0,
                             total_cost: 0,
                             position: cell,
@@ -57,16 +60,8 @@ impl Guest for Component {
                         break;
                     }
 
-                    if open_list()
-                        .read()
-                        .unwrap()
-                        .iter()
-                        .any(|c| c.position == cell)
-                        || closed_list()
-                            .read()
-                            .unwrap()
-                            .iter()
-                            .any(|c| c.position == cell)
+                    if self.open_list.borrow().iter().any(|c| c.position == cell)
+                        || self.closed_list.borrow().iter().any(|c| c.position == cell)
                     {
                         continue;
                     }
@@ -86,36 +81,33 @@ impl Guest for Component {
                         position: cell,
                     };
 
-                    open_list().write().unwrap().push(new_cell);
+                    self.open_list.borrow_mut().push(new_cell);
                 }
 
                 if current.position.row < state.player_position().row
                     && current.position.column == state.player_position().column
                 {
-                    state.move_up();
-                    break;
+                    break Some(Direction::Up);
                 } else if current.position.row > state.player_position().row
                     && current.position.column == state.player_position().column
                 {
-                    state.move_down();
-                    break;
+                    break Some(Direction::Down);
                 } else if current.position.column < state.player_position().column
                     && current.position.row == state.player_position().row
                 {
-                    state.move_left();
-                    break;
+                    break Some(Direction::Left);
                 } else if current.position.column > state.player_position().column
                     && current.position.row == state.player_position().row
                 {
-                    state.move_right();
-                    break;
+                    break Some(Direction::Right);
                 }
-                closed_list().write().unwrap().push(current);
+
+                self.closed_list.borrow_mut().push(current);
             } else {
-                break;
+                break Some(Direction::Right);
             }
         }
     }
 }
 
-export!(Component);
+export!(Solver);
