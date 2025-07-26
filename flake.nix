@@ -32,11 +32,13 @@
           packages = [
             (rust-bin.stable.latest.default.override {
               extensions = [ "rust-std" "rust-src" "rust-analyzer" ];
-              targets = [ "wasm32-wasi" ];
+              targets = [ "wasm32-wasip1" "wasm32-wasip2" ];
             })
             wit-deps.packages.${system}.wit-deps
             wabt
             wasm-tools
+            cargo-component
+            wasmtime
           ];
           
           nativeBuildInputs = [

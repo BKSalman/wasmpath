@@ -6,9 +6,9 @@ use wasmpath::component::wasmpath::game::Position;
 use wasmpath::exports::component::wasmpath::solution::Direction;
 use wasmpath::timer;
 use wasmpath::{grid::Grid, Playground, WasmPath};
-use wasmtime::component::{Component, Linker, Resource};
+use wasmtime::component::{Component, HasSelf, Linker, Resource};
 use wasmtime::{Config, Engine, Store};
-use wasmtime_wasi::WasiCtxBuilder;
+use wasmtime_wasi::p2::WasiCtxBuilder;
 
 #[macroquad::main("WASM path")]
 async fn main() -> anyhow::Result<()> {
@@ -24,9 +24,9 @@ async fn main() -> anyhow::Result<()> {
     let engine = Engine::new(&config)?;
 
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker_sync(&mut linker)?;
+    wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
 
-    WasmPath::add_to_linker(&mut linker, |s: &mut Playground| s)
+    WasmPath::add_to_linker::<_, HasSelf<_>>(&mut linker, |s: &mut Playground| s)
         .with_context(|| format!("Failed to link component imports"))?;
 
     let wasi_ctx = WasiCtxBuilder::new()
@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     let mut store = Store::new(&engine, playground);
     let component = Component::from_file(&engine, wasm_file.clone())?;
 
-    let (component, _) = WasmPath::instantiate_async(&mut store, &component, &linker).await?;
+    let component = WasmPath::instantiate_async(&mut store, &component, &linker).await?;
 
     let mut timer = timer::Timer::new(Duration::from_millis(500));
 

@@ -1,7 +1,8 @@
 use component::wasmpath::game::{Host, HostState, Position, State};
 use grid::Grid;
 use wasmtime::component::*;
-use wasmtime_wasi::{ResourceTable, WasiCtx, WasiView};
+use wasmtime_wasi::p2::{IoView, WasiCtx, WasiView};
+use wasmtime_wasi::ResourceTable;
 
 pub mod grid;
 #[cfg(test)]
@@ -18,7 +19,6 @@ bindgen!({
 
 impl Host for Playground {}
 
-#[async_trait::async_trait]
 impl HostState for Playground {
     async fn log_state(&mut self, self_: wasmtime::component::Resource<State>) {
         let grid = self.slab.get(self_.rep() as usize).unwrap();
@@ -44,7 +44,7 @@ impl HostState for Playground {
         grid.adjacent(&cell)
     }
 
-    fn drop(&mut self, _rep: wasmtime::component::Resource<State>) -> wasmtime::Result<()> {
+    async fn drop(&mut self, _rep: wasmtime::component::Resource<State>) -> wasmtime::Result<()> {
         Ok(())
     }
 }
@@ -65,12 +65,14 @@ impl Playground {
     }
 }
 
+impl IoView for Playground {
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
+}
+
 impl WasiView for Playground {
     fn ctx(&mut self) -> &mut WasiCtx {
         &mut self.ctx
-    }
-
-    fn table(&mut self) -> &mut ResourceTable {
-        &mut self.table
     }
 }
